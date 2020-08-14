@@ -25,3 +25,14 @@ require 'vendor/autoload.php';
 ```
 
 Alternatively, you can download the contents of the `src/` directory, and include all of the files inside of your project. **We do not recommend installing this way!**
+
+### 1. Usage:
+
+### 2. Functions:
+
+### 3. Contribute:
+
+### 4. Roadmap:
+
+### License:
+

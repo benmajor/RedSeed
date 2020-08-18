@@ -1,0 +1,23 @@
+{
+    "name": "bennajor/redseed",
+    "description": "RedBeanPHP ORM",
+    "homepage": "https://github.com/benmajor/RedSeed",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ben Major",
+            "email": "ben.major88@gmail.com",
+            "homepage": "https://github.com/benmajor/RedSeed"
+        }
+    ],
+    "require": {
+        "php": ">=7.0.0",
+        "gabordemooij/redbean": "*"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "BenMajor\\RedSeed\\" : "src/"
+        }
+    }
+}

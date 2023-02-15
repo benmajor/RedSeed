@@ -3,10 +3,13 @@
 namespace BenMajor\RedSeed;
 
 use RedBeanPHP\R;
+use BenMajor\RedSeed\Exception\SeedException;
+use BenMajor\RedSeed\Exception\SyntaxException;
+use BenMajor\RedSeed\Exception\FunctionException;
 
 class RedSeed
 {
-	private $allowedHashingAlgos = [ 
+	private $allowedHashingAlgos = [
 		PASSWORD_DEFAULT,
 		PASSWORD_BCRYPT,
 		PASSWORD_ARGON2I,
@@ -20,48 +23,48 @@ class RedSeed
 	private $functionHandler;
 	private $hashingMethod;
 
-	function __construct()
+	public function __construct()
 	{
 		$this->hashingMethod = PASSWORD_DEFAULT;
 		$this->functionHandler = new FunctionHandler();
 	}
 
-	public function seed( string $beanType, int $numToSeed, array $fields )
+	/**
+	 * Seed the specified bean type
+	 *
+	 * @param string $beanType
+	 * @param integer $numToSeed
+	 * @param array $fields
+	 * @return array
+	 */
+	public function seed(string $beanType, int $numToSeed, array $fields): array
 	{
-		if( $numToSeed <= 0 )
-		{
-			throw new Exception\SeedException('Number of beans to generate must be greater than 0.');
+		if ($numToSeed <= 0) {
+			throw new SeedException('Number of beans to generate must be greater than 0.');
 		}
 
-		if( empty($fields) )
-		{
-			throw new Exception\SeedException('Fields cannot be empty.');
+		if (empty($fields)) {
+			throw new SeedException('Fields cannot be empty.');
 		}
 
 		$fieldMap = [ ];
 
-		# Map the functions:
-		foreach( $fields as $field => $function )
-		{
-			# Call the function:
-			if( is_callable($function) || is_array($function) )
-			{
+		foreach ($fields as $field => $function) {
+			// Call the callback:
+			if (is_callable($function) || is_array($function)) {
 				$fieldMap[$field] = $function;
 			}
-			else
-			{
+			else {
 				preg_match($this->functionRegEx, $function, $matches);
-					
-				# Invalid function syntax!
-				if( ! count($matches) )
-				{
-					throw new Exception\SyntaxException('Invalid function syntax specified for field \''.$field.'\'');
+
+				// Invalid function syntax!
+				if (count($matches) === 0) {
+					throw new SyntaxException('Invalid function syntax specified for field \''.$field.'\'');
 				}
 
-				# Does the function exist?
-				if( ! method_exists($this->functionHandler, $matches[1]) )
-				{
-					throw new Exception\FunctionException('Specified function does not exist: '.$matches[1].'().');
+				// Does the function exist?
+				if(method_exists($this->functionHandler, $matches[1]) === false) {
+					throw new FunctionException('Specified function does not exist: '.$matches[1].'().');
 				}
 
 				$fieldMap[$field] = [
@@ -74,43 +77,35 @@ class RedSeed
 
 		$beans = [ ];
 
-		# Loop and create the beans:
-		for( $i = 0; $i < $numToSeed; $i++ )
-		{
+		// Loop and create the beans:
+		for ($i = 0; $i < $numToSeed; $i++) {
 			$bean = R::dispense($beanType);
 
-			# Add params:
-			foreach( $fieldMap as $field => $function )
-			{
-				# It's a user-defined anonymous function:
-				if( is_callable($function) )
-				{
-					# If the function returns an array, it's probably an ownList:
+			// Add params:
+			foreach ($fieldMap as $field => $function) {
+				// It's a user-defined anonymous function:
+				if (is_callable($function) === true) {
+					// If the function returns an array, it's probably an ownList:
 					$value = call_user_func($function);
 
-					if( is_array($value) )
-					{
+					if (is_array($value) === true) {
 						$bean->{'own'.ucfirst($field).'List'} = $value;
 					}
-					else
-					{
+					else {
 						$bean->{$field} = call_user_func($function);
 					}
 				}
-
-				else
-				{
+				else {
 					$bean->{$field} = $this->functionHandler->{$function['method']}($function['args']);
 				}
 			}
 
-			# Identify the bean as having been seeded:
+			// Identify the bean as having been seeded:
 			$bean->_seeded = true;
-			
+
 			$id = R::store($bean);
 
-			if( $id )
-			{
+			if ($id) {
 				$beans[] = $bean;
 			}
 		}
@@ -118,15 +113,20 @@ class RedSeed
 		return $beans;
 	}
 
-	public function unseed( string $beanType )
+	/**
+	 * Unseed the specified bean type
+	 *
+	 * @param string $beanType
+	 * @return array
+	 */
+	public function unseed(string $beanType): array
 	{
 		$removed = [ ];
 
-		foreach( R::find($beanType, '_seeded = 1') as $bean )
-		{
+		foreach (R::find($beanType, '_seeded = 1') as $bean) {
 			R::trash($bean);
 
-			$removed = $bean->id;
+			$removed[] = $bean->id;
 		}
 
 		# Remove the _seeded column:
@@ -135,19 +135,27 @@ class RedSeed
 		return $removed;
 	}
 
-	# Set the password hashing algorithm to use by the password() function:
-	public function setHashMethod( string $hash )
+	/**
+	 * Set the password hashing algorithm to use by the password() function
+	 *
+	 * @param string $hash
+	 * @return void
+	 */
+	public function setHashMethod(string $hash): void
 	{
-		if( ! in_array($hash, $this->allowedHashingAlgos) )
-		{
+		if (in_array($hash, $this->allowedHashingAlgos) === false) {
 			throw new Exception\SeedException('Unsupported hashing algorithm specified; must be one of: '.implode(' ', $this->allowedHashingAlgos));
 		}
 
 		$this->hashingMethod = $hash;
 	}
 
-	# Get the current hash method:
-	public function getHashMethod()
+	/**
+	 * Get the current hash method
+	 *
+	 * @return int
+	 */
+	public function getHashMethod(): int
 	{
 		return $this->hashingMethod;
 	}
